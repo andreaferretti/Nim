@@ -398,6 +398,9 @@ proc isOpImpl(c: PContext, n: PNode): PNode =
   result.typ = n.typ
 
 proc semIs(c: PContext, n: PNode): PNode =
+  if c.module.info ?? "buggy.nim":
+    echo "We are inside semIs"
+    echo "n ->", renderTree(n)
   if sonsLen(n) != 3:
     localError(n.info, errXExpectsTwoArguments, "is")
 
@@ -1655,9 +1658,15 @@ proc tryExpr(c: PContext, n: PNode, flags: TExprFlags = {}): PNode =
   c.generics = @[]
   var err: string
   try:
+    if c.module.info ?? "buggy.nim":
+      echo "We are about to try semExpr(c, n, flags)"
+      echo "n -> ", renderTree(n)
+      echo "flags -> ", flags
     result = semExpr(c, n, flags)
     if msgs.gErrorCounter != oldErrorCount: result = nil
   except ERecoverableError:
+    if c.module.info ?? "buggy.nim":
+      echo "We should not get here"
     if optReportConceptFailures in gGlobalOptions:
       err = getCurrentExceptionMsg()
   # undo symbol table changes (as far as it's possible):
@@ -1673,6 +1682,8 @@ proc tryExpr(c: PContext, n: PNode, flags: TExprFlags = {}): PNode =
   errorOutputs = oldErrorOutputs
   msgs.gErrorCounter = oldErrorCount
   msgs.gErrorMax = oldErrorMax
+  if not err.isNil:
+    echo err
   if optReportConceptFailures in gGlobalOptions and not err.isNil:
     localError(n.info, err)
 
@@ -2117,6 +2128,8 @@ proc setGenericParams(c: PContext, n: PNode) =
     n[i].typ = semTypeNode(c, n[i], nil)
 
 proc semExpr(c: PContext, n: PNode, flags: TExprFlags = {}): PNode =
+  if c.module.info ?? "buggy.nim":
+    echo "Entering semExpr with n -> ", n.kind, " : ", renderTree(n)
   result = n
   if gCmd == cmdIdeTools: suggestExpr(c, n)
   if nfSem in n.flags: return
@@ -2344,3 +2357,5 @@ proc semExpr(c: PContext, n: PNode, flags: TExprFlags = {}): PNode =
     localError(n.info, errInvalidExpressionX,
                renderTree(n, {renderNoComments}))
   if result != nil: incl(result.flags, nfSem)
+  if c.module.info ?? "buggy.nim":
+    echo "Exiting semExpr with n -> ", n.kind, ", result -> ", result
